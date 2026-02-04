@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bài tập 14 - Memory Card Flip Game</title>
+  <style>
+    :root{
+      --bg: #0b1220;
+      --panel: rgba(255,255,255,.06);
+      --panel2: rgba(255,255,255,.10);
+      --text: #eaf0ff;
+      --muted: rgba(234,240,255,.75);
+      --accent: #7c5cff;
+      --ok: #33d17a;
+      --bad: #ff5c7a;
+      --shadow: 0 18px 60px rgba(0,0,0,.45);
+      --radius: 18px;
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 800px at 15% 10%, rgba(124,92,255,.22), transparent 60%),
+        radial-gradient(900px 600px at 85% 25%, rgba(51,209,122,.16), transparent 60%),
+        radial-gradient(800px 500px at 50% 95%, rgba(255,92,122,.12), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    header, main, footer{ width: min(980px, 100%); }
+
+    header{
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .brand{
+      display: grid;
+      gap: 6px;
+    }
+    h1{
+      font-size: clamp(20px, 2.4vw, 28px);
+      margin: 0;
+      letter-spacing: .2px;
+    }
+    .sub{
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .hud{
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .pill{
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 10px 12px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .pill strong{ color: var(--text); font-weight: 700; }
+
+    .btn{
+      cursor: pointer;
+      border: 0;
+      background: linear-gradient(135deg, rgba(124,92,255,.95), rgba(124,92,255,.65));
+      color: white;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      letter-spacing: .2px;
+      box-shadow: var(--shadow);
+      transition: transform .12s ease, filter .12s ease;
+    }
+    .btn:hover{ transform: translateY(-1px); filter: brightness(1.05); }
+    .btn:active{ transform: translateY(0px) scale(.99); }
+    .btn:focus-visible{ outline: 3px solid rgba(124,92,255,.45); outline-offset: 3px; }
+
+    main{
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .grid{
+      display: grid;
+gap: 14px;
+      grid-template-columns: repeat(2, minmax(0, 1fr)); /* mobile 2 cột */
+    }
+    @media (min-width: 720px){
+      .grid{ grid-template-columns: repeat(4, minmax(0, 1fr)); } /* desktop 4 cột */
+    }
+
+    .card{
+      position: relative;
+      height: 120px;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      perspective: 1000px; /* 3D */
+    }
+    @media (min-width: 720px){
+      .card{ height: 140px; }
+    }
+
+    .card:disabled{ cursor: default; }
+
+    .inner{
+      width: 100%;
+      height: 100%;
+      border-radius: 16px;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform .55s cubic-bezier(.2,.8,.2,1);
+      box-shadow: 0 12px 34px rgba(0,0,0,.35);
+    }
+
+    .card:hover .inner{
+      transform: translateY(-2px) rotateX(2deg) rotateY(-2deg);
+    }
+    .card.flipped .inner,
+    .card.matched .inner{
+      transform: rotateY(180deg);
+    }
+    .card.matched .inner{
+      box-shadow: 0 12px 34px rgba(51,209,122,.25);
+    }
+
+    .face{
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      backface-visibility: hidden;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.14);
+      overflow: hidden;
+    }
+
+    .front{
+      background:
+        radial-gradient(600px 200px at 20% 20%, rgba(124,92,255,.25), transparent 60%),
+        radial-gradient(500px 220px at 90% 80%, rgba(51,209,122,.18), transparent 60%),
+        rgba(255,255,255,.06);
+    }
+
+    .front .q{
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.14);
+      font-size: 22px;
+      color: rgba(234,240,255,.9);
+    }
+
+    .back{
+      transform: rotateY(180deg);
+      background:
+        radial-gradient(700px 240px at 10% 10%, rgba(255,255,255,.12), transparent 55%),
+        radial-gradient(600px 240px at 90% 90%, rgba(124,92,255,.15), transparent 60%),
+        rgba(255,255,255,.08);
+    }
+
+    .symbol{
+      font-size: 42px;
+      filter: drop-shadow(0 10px 12px rgba(0,0,0,.35));
+      transform: translateZ(1px);
+    }
+
+    .status{
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .msg{
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.3;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: var(--panel2);
+      border: 1px solid rgba(255,255,255,.10);
+      flex: 1;
+      min-width: 220px;
+    }
+    .msg.ok{ border-color: rgba(51,209,122,.35); }
+    .msg.bad{ border-color: rgba(255,92,122,.35); }
+
+    footer{
+      margin-top: 12px;
+      color: rgba(234,240,255,.55);
+      font-size: 12px;
+      text-align: center;
+    }
+/* giảm hiệu ứng nếu user bật reduce motion */
+    @media (prefers-reduced-motion: reduce){
+      .inner{ transition: none; }
+      .card:hover .inner{ transform: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="brand">
+      <h1>Bài tập 14: Memory Card Flip Game</h1>
+      <p class="sub">Click để lật 2 thẻ. Nếu trùng thì giữ nguyên, không trùng thì lật lại. Có đếm lượt và báo thắng.</p>
+    </div>
+
+    <div class="hud" aria-label="Bảng điều khiển">
+      <div class="pill" aria-live="polite">Moves: <strong id="moves">0</strong></div>
+      <div class="pill" aria-live="polite">Matched: <strong id="matched">0</strong>/4</div>
+      <button class="btn" id="resetBtn" type="button">Reset</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid" id="grid" aria-label="Bàn chơi memory cards"></section>
+
+    <div class="status">
+      <div class="msg" id="message" aria-live="polite">
+        Mời chủ nhân bắt đầu: lật 2 thẻ để tìm cặp giống nhau.
+      </div>
+      <div class="pill" title="Gợi ý">
+        Tip: <strong>nhớ vị trí</strong> 😄
+      </div>
+    </div>
+  </main>
+
+  <footer>© baitap14.html — HTML semantic + Grid + Flip 3D + Shuffle + Logic match + Deploy GitHub Pages</footer>
+
+  <script>
+    // ====== Dữ liệu 8 thẻ (4 cặp) ======
+    // Có thể đổi emoji khác nếu ngài muốn
+    const PAIRS = ["🍉","🍋","🍇","🍓"]; // 4 cặp
+    const TOTAL_PAIRS = PAIRS.length;
+
+    const gridEl = document.getElementById("grid");
+    const movesEl = document.getElementById("moves");
+    const matchedEl = document.getElementById("matched");
+    const messageEl = document.getElementById("message");
+    const resetBtn = document.getElementById("resetBtn");
+
+    let deck = [];
+    let first = null;
+    let second = null;
+    let lockBoard = false;
+    let moves = 0;
+    let matchedPairs = 0;
+
+    function setMessage(text, type = "") {
+      messageEl.classList.remove("ok", "bad");
+      if (type) messageEl.classList.add(type);
+      messageEl.textContent = text;
+    }
+
+    // Fisher–Yates shuffle
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function buildDeck() {
+      const items = [...PAIRS, ...PAIRS].map((symbol, idx) => ({
+        id: crypto?.randomUUID ? crypto.randomUUID() : String(Date.now() + idx),
+        symbol
+      }));
+      return shuffle(items);
+    }
+
+    function render() {
+      gridEl.innerHTML = "";
+      deck.forEach((cardData, index) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "card";
+        btn.setAttribute("aria-label", "Thẻ úp. Bấm để lật.");
+        btn.dataset.symbol = cardData.symbol;
+        btn.dataset.index = index;
+btn.innerHTML = `
+          <div class="inner">
+            <div class="face front">
+              <div class="q">?</div>
+            </div>
+            <div class="face back">
+              <div class="symbol" aria-hidden="true">${cardData.symbol}</div>
+            </div>
+          </div>
+        `;
+
+        btn.addEventListener("click", onFlip);
+        gridEl.appendChild(btn);
+      });
+    }
+
+    function updateHud() {
+      movesEl.textContent = String(moves);
+      matchedEl.textContent = String(matchedPairs);
+    }
+
+    function resetGame() {
+      deck = buildDeck();
+      first = null;
+      second = null;
+      lockBoard = false;
+      moves = 0;
+      matchedPairs = 0;
+      updateHud();
+      render();
+      setMessage("Đã reset! Chủ nhân lật 2 thẻ để tìm cặp nhé.");
+    }
+
+    function onFlip(e) {
+      const card = e.currentTarget;
+
+      if (lockBoard) return;
+      if (card.classList.contains("matched")) return;
+      if (card === first) return;
+
+      card.classList.add("flipped");
+      card.setAttribute("aria-label", `Thẻ lật. Biểu tượng: ${card.dataset.symbol}`);
+
+      if (!first) {
+        first = card;
+        return;
+      }
+
+      second = card;
+      moves++;
+      updateHud();
+
+      checkMatch();
+    }
+
+    function checkMatch() {
+      const isMatch = first.dataset.symbol === second.dataset.symbol;
+
+      if (isMatch) {
+        first.classList.add("matched");
+        second.classList.add("matched");
+        first.disabled = true;
+        second.disabled = true;
+
+        matchedPairs++;
+        updateHud();
+
+        setMessage(`Chuẩn rồi chủ nhân! Ghép đúng cặp ${first.dataset.symbol}.`, "ok");
+
+        first = null;
+        second = null;
+
+        if (matchedPairs === TOTAL_PAIRS) {
+          setMessage(`🎉 Chủ nhân thắng rồi! Tổng moves: ${moves}. Bấm Reset để chơi lại.`, "ok");
+        }
+      } else {
+        lockBoard = true;
+        setMessage("Chưa khớp rồi chủ nhân ơi… lật lại sau 0.8s.", "bad");
+
+        setTimeout(() => {
+          first.classList.remove("flipped");
+          second.classList.remove("flipped");
+          first.setAttribute("aria-label", "Thẻ úp. Bấm để lật.");
+          second.setAttribute("aria-label", "Thẻ úp. Bấm để lật.");
+
+          first = null;
+          second = null;
+          lockBoard = false;
+          setMessage("Mời chủ nhân lật tiếp ạ.");
+        }, 800);
+      }
+    }
+
+    resetBtn.addEventListener("click", resetGame);
+
+    // Start
+    resetGame();
+  </script>
+</body>
+</html>
